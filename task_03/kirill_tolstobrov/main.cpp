@@ -62,7 +62,7 @@ class Graph {
   int get_vertices_amount() const { return vertices_amount; }
   int get_edges_amount() const { return edges_amount; }
   void set_depth(int new_depth) { depth = new_depth; }
-  void set_depths_map(std::vector<std::pair<int, int>> &d_m) {
+  void set_depths_map(std::vector<std::pair<int, int>>& d_m) {
     depths_map = d_m;
   }
 
@@ -88,7 +88,7 @@ class Graph {
       vertex_string += "    {\n      \"id\": " + std::to_string(i);
       vertex_string += ",\n      \"edge_ids\": ";
 
-      auto &cur_vertex = connections_map[i];
+      auto& cur_vertex = connections_map[i];
       for (auto it = cur_vertex.begin(); it != cur_vertex.end(); it++) {
         if (it == cur_vertex.begin()) {
           vertex_string += "[";
@@ -154,7 +154,7 @@ class Graph {
   }
 };
 
-void generateRandomGraph(Graph &g, int depth, int new_vertices_num) {
+void generateRandomGraph(Graph& g, int depth, int new_vertices_num) {
   g.set_depth(depth);
 
   srand(std::time(NULL));
@@ -235,7 +235,7 @@ void generateRandomGraph(Graph &g, int depth, int new_vertices_num) {
   g.set_depths_map(depths_map);
 }
 
-void generateCustomGraph(Graph &g,
+void generateCustomGraph(Graph& g,
                          int vert_number,
                          std::vector<std::pair<int, int>> connections) {
   for (int i = 0; i < vert_number; i++) {
@@ -246,13 +246,13 @@ void generateCustomGraph(Graph &g,
   }
 }
 
-void Logger(std::time_t start_time, Graph &g, int graph_num) {
+void Logger(std::time_t start_time, Graph& g, int graph_num) {
   std::string g_log = g.log_format(g.get_vertices_amount());
 
-  std::tm *start_tm = std::localtime(&start_time);
+  std::tm* start_tm = std::localtime(&start_time);
   auto finish = std::chrono::system_clock::now();
   std::time_t finish_time = std::chrono::system_clock::to_time_t(finish);
-  std::tm *finish_tm = std::localtime(&finish_time);
+  std::tm* finish_tm = std::localtime(&finish_time);
 
   std::cout << start_tm->tm_hour << ":" << start_tm->tm_min << ":"
             << start_tm->tm_sec;
