@@ -1,7 +1,6 @@
 #include <cassert>
 #include <chrono>
 
-
 #include <fstream>
 #include <iostream>
 #include <iterator>
