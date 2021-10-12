@@ -1,6 +1,7 @@
+#include <cassert>
 #include <chrono>
-#include <cstdlib>
-#include <ctime>
+
+
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -269,10 +270,10 @@ void Logger(std::time_t start_time, Graph& g, int graph_num) {
   if (file.is_open()) {
     file << start_tm->tm_hour << ":" << start_tm->tm_min << ":"
          << start_tm->tm_sec;
-    file << ": Graph " << graph_num << "Generation Started " << std::endl;
+    file << ": Graph " << graph_num << " Generation Started " << std::endl;
     file << finish_tm->tm_hour << ":" << finish_tm->tm_min << ":"
          << finish_tm->tm_sec;
-    file << ": Graph " << graph_num << "Generation Ended ";
+    file << ": Graph " << graph_num << " Generation Ended ";
     file << g_log << std::endl << std::endl;
   }
 
@@ -280,8 +281,7 @@ void Logger(std::time_t start_time, Graph& g, int graph_num) {
 }
 
 int main() {
-  const int graphs_amount = 10;
-  Graph graphs[10];
+  Graph graph;
 
   int depth, new_vertices_num;
 
@@ -292,22 +292,15 @@ int main() {
             << std::endl;
   std::cin >> new_vertices_num;
 
-  for (int i = 0; i < graphs_amount; i++) {
-    auto start = std::chrono::system_clock::now();
-    std::time_t start_time = std::chrono::system_clock::to_time_t(start);
-    generateRandomGraph(graphs[i], depth, new_vertices_num);
-    Logger(start_time, graphs[i], i + 1);
-  }
+  generateRandomGraph(graph, depth, new_vertices_num);
 
-  for (int i = 0; i < graphs_amount; i++) {
-    std::string filename = "temp/graph" + std::to_string(i + 1) + ".json";
-    std::ofstream file;
-    file.open(filename);
-
-    if (file.is_open()) {
-      file << (std::string)graphs[i] << std::endl;
-    }
+  std::string filename = "graph.json";
+  std::ofstream file;
+  file.open(filename);
+  if (file.is_open()) {
+    file << (std::string)graph << std::endl;
   }
+  file.close();
 
   return 0;
 }
