@@ -1,6 +1,5 @@
 #include <cassert>
 #include <chrono>
-
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -8,121 +7,144 @@
 #include <utility>
 #include <vector>
 
-class Vertex {
-  int id;
-  int depth;
+using VertexId = int;
+using EdgeId = int;
 
+class Vertex {
  public:
-  Vertex(int init_id, int init_depth) : id(init_id), depth(init_depth) {}
-  int get_id() const { return id; }
-  int get_depth() const { return depth; }
+  explicit Vertex(const VertexId& init_id = 0, const int& init_depth = 0)
+      : id(init_id), depth(init_depth) {}
+  int check_edge_presence(const EdgeId& edge_id) {
+    for (const auto& id : connected_edges_) {
+      if (edge_id == id) {
+        return 1;
+      }
+    }
+    return 0;
+  }
+  void add_edge(const EdgeId& edge_id) {
+    assert(!check_edge_presence(edge_id) &&
+           "Attemptig to add added edge to vertex: Error.");
+    connected_edges_.push_back(edge_id);
+  }
+  operator std::string() const {
+    std::string result = "";
+    result += "    {\n      \"id\": " + std::to_string(id);
+    result += ",\n      \"edge_ids\": [";
+
+    for (int i = 0; i < connected_edges_.size(); i++) {
+      result += std::to_string(connected_edges_[i]);
+      if (i == connected_edges_.size() - 1) {
+        result += "],\n";
+      } else {
+        result += ", ";
+      }
+    }
+    result += "      \"depth\": " + std::to_string(depth);
+    result += "\n    }";
+    return result;
+  }
+
+  const VertexId id;
+  const int depth;
+
+ private:
+  std::vector<EdgeId> connected_edges_;
 };
 
 class Edge {
-  int id;
-  int vertex1_id;
-  int vertex2_id;
-  std::string color;
-
  public:
-  Edge(int init_id, int v1_init, int v2_init, std::string color_init)
+  Edge(const EdgeId& init_id,
+       const VertexId& v1_init,
+       const VertexId& v2_init,
+       std::string color_init)
       : id(init_id),
         vertex1_id(v1_init),
         vertex2_id(v2_init),
         color(color_init){};
-  int get_id() const { return id; }
-  int get_v1_id() const { return vertex1_id; }
-  int get_v2_id() const { return vertex2_id; }
-  std::string get_color() const { return color; }
+  operator std::string() const {
+    std::string result = "";
+    result += "    {\n      \"id\": " + std::to_string(id);
+    result += ",\n      \"vertex_ids\": ";
+
+    result += "[" + std::to_string(vertex1_id);
+    result += ", " + std::to_string(vertex2_id);
+    result += "],\n      \"color\": \"";
+    result += color;
+    result += "\"\n    }";
+
+    return result;
+  }
+
+  const EdgeId id;
+  const VertexId vertex1_id;
+  const VertexId vertex2_id;
+  const std::string color;
 };
 
 class Graph {
-  std::vector<Edge> edges;
-  std::vector<Vertex> vertices;
-
-  // connections_map: vertex1 -> edge -> vertex2
-  std::map<int, std::map<int, int>> connections_map;
-  std::vector<std::pair<int, int>> depths_map;
-  std::map<std::string, int> colors_counter;
-
-  int vertices_amount;
-  int edges_amount;
-  int depth;
-
  public:
-  Graph(int depth_init = 0)
-      : vertices_amount(0), edges_amount(0), depth(depth_init) {
+  Graph(int depth_init = 0) : depth(depth_init) {
     colors_counter["grey"] = 0;
     colors_counter["green"] = 0;
     colors_counter["blue"] = 0;
     colors_counter["yellow"] = 0;
     colors_counter["red"] = 0;
   }
+  int get_vertices_amount() const { return vertices_.size(); }
+  int get_edges_amount() const { return edges_.size(); }
 
-  int get_vertices_amount() const { return vertices_amount; }
-  int get_edges_amount() const { return edges_amount; }
-  void set_depth(int new_depth) { depth = new_depth; }
+  void add_new_vertex(int depth = 0) {
+    vertices_.push_back(Vertex(vertices_.size(), depth));
+  }
+
+  int are_vertices_connected(const VertexId& id1, const VertexId& id2) {
+    for (const auto& connection : connections_map_[id1]) {
+      if (connection.second == id2) {
+        return 1;
+      }
+    }
+    return 0;
+  }
+
+  void bind_vertices(const VertexId& id1,
+                     const VertexId& id2,
+                     std::string edge_color = "grey") {
+    assert(!are_vertices_connected(id1, id2) &&
+           "Attemptig to connect connected vertices: Error.");
+    assert(id1 < vertices_.size() && id2 < vertices_.size() &&
+           "Attemptig to connect nonexistent vertex: Error.");
+    const auto& edge = edges_.emplace_back(edges_.size(), id1, id2, edge_color);
+    connections_map_[id1][edge.id] = id2;
+    connections_map_[id2][edge.id] = id1;
+    vertices_[id1].add_edge(edge.id);
+    if (id1 != id2)
+      vertices_[id2].add_edge(edge.id);
+    colors_counter[edge_color]++;
+  }
+
   void set_depths_map(std::vector<std::pair<int, int>>& d_m) {
     depths_map = d_m;
   }
 
-  void add_new_vertex(int depth = 0) {
-    vertices.push_back(Vertex(vertices_amount, depth));
-    vertices_amount++;
-  }
+  operator std::string() const {
+    std::string result = "{\n  \"vertices\": [\n";
 
-  void bind_vertices(int id1, int id2, std::string edge_color = "grey") {
-    edges.push_back(Edge(edges_amount, id1, id2, edge_color));
-    edges_amount++;
-    connections_map[id1][edges_amount - 1] = id2;
-    connections_map[id2][edges_amount - 1] = id1;
-    colors_counter[edge_color]++;
-  }
-
-  operator std::string() {
-    std::string result = "{\n  \"depth\": " + std::to_string(depth) + ",";
-    result += "\n  \"vertices\": [\n";
-
-    for (int i = 0; i < vertices_amount; i++) {
-      std::string vertex_string = "";
-      vertex_string += "    {\n      \"id\": " + std::to_string(i);
-      vertex_string += ",\n      \"edge_ids\": ";
-
-      auto& cur_vertex = connections_map[i];
-      for (auto it = cur_vertex.begin(); it != cur_vertex.end(); it++) {
-        if (it == cur_vertex.begin()) {
-          vertex_string += "[";
-        } else {
-          vertex_string += ", ";
-        }
-        vertex_string += std::to_string(it->first);
-      }
-      vertex_string += "],\n";
-      vertex_string +=
-          "      \"depth\": " + std::to_string(vertices[i].get_depth());
-      vertex_string += "\n    }";
+    for (int i = 0; i < vertices_.size(); i++) {
+      std::string vertex_string = std::string(vertices_[i]);
 
       result += vertex_string;
-      if (i != vertices_amount - 1)
+      if (i != vertices_.size() - 1)
         result += ",\n";
     }
 
     result += "\n  ],\n  \"edges\": [\n";
 
-    for (int i = 0; i < edges_amount; i++) {
-      std::string edge_string = "";
-      edge_string += "    {\n      \"id\": " + std::to_string(i);
-      edge_string += ",\n      \"vertex_ids\": ";
-
-      edge_string += "[" + std::to_string(edges[i].get_v1_id());
-      edge_string += ", " + std::to_string(edges[i].get_v2_id());
-      edge_string += "],\n";
-
-      edge_string += "      \"color\": \"" + edges[i].get_color() + "\"";
-      edge_string += "\n    }";
+    for (int i = 0; i < edges_.size(); i++) {
+      std::string edge_string = std::string(edges_[i]);
 
       result += edge_string;
-      if (i != edges_amount - 1)
+      if (i != edges_.size() - 1)
         result += ",\n";
     }
 
@@ -130,38 +152,26 @@ class Graph {
     return result;
   }
 
-  std::string log_format(int new_vertices_num) {
-    std::string result = "{\n  depth: " + std::to_string(depth);
-    result += ",\n  new_vertices_num: " + std::to_string(new_vertices_num);
-    result += ",\n  vertices: " + std::to_string(vertices_amount) + ", [";
-    for (int i = 0; i < vertices_amount; i++) {
-      result += std::to_string(depths_map[i].second - depths_map[i].first + 1);
-      if (i < vertices_amount - 1) {
-        result += ", ";
-      } else {
-        result += "]\n";
-      }
-    }
-    result += "  edges: " + std::to_string(edges_amount) + ", {";
-    result += "gray: " + std::to_string(colors_counter["gray"]);
-    result += ", green: " + std::to_string(colors_counter["green"]);
-    result += ", blue: " + std::to_string(colors_counter["blue"]);
-    result += ", yellow: " + std::to_string(colors_counter["yellow"]);
-    result += ", red: " + std::to_string(colors_counter["red"]);
-    result += "}\n}\n";
+  const int depth;
 
-    return result;
-  }
+ private:
+  std::vector<Edge> edges_;
+  std::vector<Vertex> vertices_;
+
+  // connections_map: vertex1 -> edge -> vertex2
+  std::map<VertexId, std::map<EdgeId, VertexId>> connections_map_;
+  std::vector<std::pair<int, int>> depths_map;
+  std::map<std::string, int> colors_counter;
 };
 
-void generateRandomGraph(Graph& g, int depth, int new_vertices_num) {
-  g.set_depth(depth);
+Graph generateRandomGraph(int depth, int new_vertices_num) {
+  Graph graph = Graph(depth);
 
   srand(std::time(NULL));
 
   const float probability_decreasement = 1.0 / depth;
   float new_vertex_prob = 1.0;
-  g.add_new_vertex(0);
+  graph.add_new_vertex(0);
   // depths_map: depth -> (first_vertex_id; last_vertex_id)
   std::vector<std::pair<int, int>> depths_map;
   depths_map.push_back({0, 0});
@@ -171,9 +181,9 @@ void generateRandomGraph(Graph& g, int depth, int new_vertices_num) {
     for (int j = depths_map[i].first; j <= depths_map[i].second; j++) {
       for (int k = 0; k < new_vertices_num; k++) {
         if ((double)std::rand() / RAND_MAX <= new_vertex_prob) {
-          g.add_new_vertex(i + 1);
+          graph.add_new_vertex(i + 1);
           vertices_amount++;
-          g.bind_vertices(j, vertices_amount - 1);
+          graph.bind_vertices(j, vertices_amount - 1);
           if (depths_map.size() <= i + 1) {
             depths_map.push_back({vertices_amount - 1, vertices_amount - 1});
           } else {
@@ -193,12 +203,12 @@ void generateRandomGraph(Graph& g, int depth, int new_vertices_num) {
 
   for (int cur_id = 0; cur_id < vertices_amount; cur_id++) {
     if ((double)std::rand() / RAND_MAX <= GREEN_PROB / (float)PROB_COEF) {
-      g.bind_vertices(cur_id, cur_id, "green");
+      graph.bind_vertices(cur_id, cur_id, "green");
     }
 
     if (cur_id != depths_map[cur_depth].second) {
       if ((double)std::rand() / RAND_MAX <= BLUE_PROB / (float)PROB_COEF) {
-        g.bind_vertices(cur_id, cur_id + 1, "blue");
+        graph.bind_vertices(cur_id, cur_id + 1, "blue");
       }
     }
 
@@ -211,7 +221,7 @@ void generateRandomGraph(Graph& g, int depth, int new_vertices_num) {
           next_depth_start +
           (std::rand() % (next_depth_finish - next_depth_start + 1));
 
-      g.bind_vertices(cur_id, binded_id, "yellow");
+      graph.bind_vertices(cur_id, binded_id, "yellow");
     }
 
     if (cur_depth < (depth - 1) &&
@@ -223,7 +233,7 @@ void generateRandomGraph(Graph& g, int depth, int new_vertices_num) {
           next_next_depth_start +
           (std::rand() % (next_next_depth_finish - next_next_depth_start + 1));
 
-      g.bind_vertices(cur_id, binded_id, "red");
+      graph.bind_vertices(cur_id, binded_id, "red");
     }
 
     if (cur_id == depths_map[cur_depth].second) {
@@ -232,56 +242,24 @@ void generateRandomGraph(Graph& g, int depth, int new_vertices_num) {
     yellow_probability += probability_increasement;
   }
 
-  g.set_depths_map(depths_map);
+  graph.set_depths_map(depths_map);
+  return graph;
 }
 
-void generateCustomGraph(Graph& g,
-                         int vert_number,
-                         std::vector<std::pair<int, int>> connections) {
+Graph generateCustomGraph(
+    int vert_number,
+    const std::vector<std::pair<VertexId, VertexId>>& connections) {
+  Graph graph = Graph();
   for (int i = 0; i < vert_number; i++) {
-    g.add_new_vertex();
+    graph.add_new_vertex();
   }
-  for (int i = 0; i < connections.size(); i++) {
-    g.bind_vertices(connections[i].first, connections[i].second);
+  for (const auto& connection : connections) {
+    graph.bind_vertices(connection.first, connection.second);
   }
-}
-
-void Logger(std::time_t start_time, Graph& g, int graph_num) {
-  std::string g_log = g.log_format(g.get_vertices_amount());
-
-  std::tm* start_tm = std::localtime(&start_time);
-  auto finish = std::chrono::system_clock::now();
-  std::time_t finish_time = std::chrono::system_clock::to_time_t(finish);
-  std::tm* finish_tm = std::localtime(&finish_time);
-
-  std::cout << start_tm->tm_hour << ":" << start_tm->tm_min << ":"
-            << start_tm->tm_sec;
-  std::cout << ": Graph " << graph_num << "Generation Started " << std::endl;
-  std::cout << finish_tm->tm_hour << ":" << finish_tm->tm_min << ":"
-            << finish_tm->tm_sec;
-  std::cout << ": Graph " << graph_num << "Generation Ended ";
-  std::cout << g_log << std::endl;
-
-  std::string filename = "temp/GraphsLogger.log";
-  std::ofstream file;
-  file.open(filename, std::ios::app);
-
-  if (file.is_open()) {
-    file << start_tm->tm_hour << ":" << start_tm->tm_min << ":"
-         << start_tm->tm_sec;
-    file << ": Graph " << graph_num << " Generation Started " << std::endl;
-    file << finish_tm->tm_hour << ":" << finish_tm->tm_min << ":"
-         << finish_tm->tm_sec;
-    file << ": Graph " << graph_num << " Generation Ended ";
-    file << g_log << std::endl << std::endl;
-  }
-
-  file.close();
+  return graph;
 }
 
 int main() {
-  Graph graph;
-
   int depth, new_vertices_num;
 
   std::cout << "Enter the depth:" << std::endl;
@@ -291,7 +269,7 @@ int main() {
             << std::endl;
   std::cin >> new_vertices_num;
 
-  generateRandomGraph(graph, depth, new_vertices_num);
+  Graph graph = generateRandomGraph(depth, new_vertices_num);
 
   std::string filename = "graph.json";
   std::ofstream file;
